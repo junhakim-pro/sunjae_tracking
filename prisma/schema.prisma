@@ -1,0 +1,146 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+enum CaregiverRole {
+  mom
+  dad
+  grandma
+  grandpa
+}
+
+enum MessengerPlatform {
+  telegram
+  kakao
+  web
+}
+
+enum SourceType {
+  chat_text
+  chat_image
+  web_form
+}
+
+enum IntakeType {
+  formula
+  solid_food
+  water
+  snack
+}
+
+enum NoteCategory {
+  condition
+  symptom
+  general
+}
+
+model Baby {
+  id                  String             @id
+  name                String
+  birthDate           DateTime
+  sex                 String
+  latestWeightKg      Float?
+  latestHeightCm      Float?
+  latestMeasurementAt DateTime?
+  caregivers          Caregiver[]
+  rawMessages         RawMessage[]
+  intakeLogs          IntakeLog[]
+  sleepLogs           SleepLog[]
+  noteLogs            NoteLog[]
+  growthMeasurements  GrowthMeasurement[]
+}
+
+model Caregiver {
+  id                String            @id
+  babyId            String
+  name              String
+  role              CaregiverRole
+  messengerPlatform MessengerPlatform
+  createdAt         DateTime          @default(now())
+  baby              Baby              @relation(fields: [babyId], references: [id], onDelete: Cascade)
+  rawMessages       RawMessage[]
+}
+
+model RawMessage {
+  id          String      @id
+  babyId      String
+  caregiverId String?
+  sourceType  SourceType
+  rawText     String?
+  rawImageUrl String?
+  receivedAt  DateTime    @default(now())
+  baby        Baby        @relation(fields: [babyId], references: [id], onDelete: Cascade)
+  caregiver   Caregiver?  @relation(fields: [caregiverId], references: [id], onDelete: SetNull)
+  intakeLogs  IntakeLog[]
+  sleepLogs   SleepLog[]
+  noteLogs    NoteLog[]
+}
+
+model IntakeLog {
+  id              String      @id
+  babyId          String
+  rawMessageId    String?
+  sourceType      SourceType
+  intakeType      IntakeType
+  occurredAt      DateTime
+  amountMl        Int?
+  amountG         Int?
+  consumedRatio   Float?
+  foodName        String?
+  notes           String?
+  createdBy       String
+  parseConfidence Float
+  createdAt       DateTime    @default(now())
+  baby            Baby        @relation(fields: [babyId], references: [id], onDelete: Cascade)
+  rawMessage      RawMessage? @relation(fields: [rawMessageId], references: [id], onDelete: SetNull)
+
+  @@index([babyId, occurredAt(sort: Desc)])
+}
+
+model SleepLog {
+  id           String      @id
+  babyId       String
+  rawMessageId String?
+  startedAt    DateTime
+  endedAt      DateTime
+  durationMin  Int
+  createdBy    String
+  createdAt    DateTime    @default(now())
+  baby         Baby        @relation(fields: [babyId], references: [id], onDelete: Cascade)
+  rawMessage   RawMessage? @relation(fields: [rawMessageId], references: [id], onDelete: SetNull)
+
+  @@index([babyId, startedAt(sort: Desc)])
+}
+
+model NoteLog {
+  id           String      @id
+  babyId       String
+  rawMessageId String?
+  category     NoteCategory
+  note         String
+  occurredAt   DateTime
+  createdBy    String
+  createdAt    DateTime    @default(now())
+  baby         Baby        @relation(fields: [babyId], references: [id], onDelete: Cascade)
+  rawMessage   RawMessage? @relation(fields: [rawMessageId], references: [id], onDelete: SetNull)
+
+  @@index([babyId, occurredAt(sort: Desc)])
+}
+
+model GrowthMeasurement {
+  id               String   @id
+  babyId           String
+  measuredAt       DateTime
+  weightKg         Float?
+  heightCm         Float?
+  weightPercentile Float?
+  heightPercentile Float?
+  sourceStandard   String
+  createdAt        DateTime @default(now())
+  baby             Baby     @relation(fields: [babyId], references: [id], onDelete: Cascade)
+}

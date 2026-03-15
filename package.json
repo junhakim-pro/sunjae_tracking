@@ -1,0 +1,32 @@
+{
+  "name": "sunjae-care-log",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "lint": "next lint",
+    "db:generate": "prisma generate",
+    "db:init": "sqlite3 prisma/app.db < prisma/init.sql",
+    "db:push": "prisma db push",
+    "db:seed": "prisma db seed"
+  },
+  "dependencies": {
+    "@prisma/client": "^6.16.2",
+    "next": "^16.1.6",
+    "prisma": "^6.16.2",
+    "react": "19.1.0",
+    "react-dom": "19.1.0",
+    "zod": "3.24.2"
+  },
+  "devDependencies": {
+    "@types/node": "22.13.10",
+    "@types/react": "19.0.10",
+    "@types/react-dom": "19.0.4",
+    "typescript": "5.8.2"
+  },
+  "prisma": {
+    "seed": "node prisma/seed.js"
+  }
+}
