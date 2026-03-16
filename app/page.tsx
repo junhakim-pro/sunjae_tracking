@@ -67,7 +67,7 @@ export default async function HomePage() {
         <span className="eyebrow">Sunjae Care Log</span>
         <div className="hero-grid">
           <div className="hero-copy">
-            <h1>가족 대화를 아이 성장 로그로 바꾸는 MVP</h1>
+            <h1>가족 대화를 아이 성장 기록으로 바꾸는 첫 화면</h1>
             <p>
               텔레그램에 자연스럽게 남긴 말과 사진을 AI가 읽고, 분유·이유식·수면·메모를 하루 흐름으로
               정리합니다. 목표 대비 달성률과 다음 식사 추천까지 바로 보여주는 방향으로 설계했습니다.
