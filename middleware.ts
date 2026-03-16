@@ -5,6 +5,7 @@ function isPublicPath(pathname: string) {
   return (
     pathname.startsWith("/unlock") ||
     pathname.startsWith("/api/unlock") ||
+    pathname.startsWith("/api/telegram/webhook") ||
     pathname.startsWith("/_next") ||
     pathname === "/favicon.ico"
   );
@@ -30,4 +31,3 @@ export async function middleware(request: NextRequest) {
 export const config = {
   matcher: ["/((?!.*\\.).*)"]
 };
-

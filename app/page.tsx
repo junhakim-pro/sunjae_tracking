@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { LogEntryForm } from "@/components/log-entry-form";
+import { QuickCaptureBar } from "@/components/quick-capture-bar";
 import { TimelineManager } from "@/components/timeline-manager";
 import { WeeklyTrend } from "@/components/weekly-trend";
 import { chatExamples } from "@/lib/mock-data";
@@ -138,6 +139,8 @@ export default async function HomePage() {
           </div>
         </div>
       </section>
+
+      <QuickCaptureBar />
 
       <section className="section-heading-block">
         <span className="section-kicker">Overview</span>
