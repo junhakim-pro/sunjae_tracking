@@ -357,12 +357,17 @@ export async function findSuspiciousIntake(input: {
 
     if (hasVerySimilarRecent && candidateAmount >= 120) {
       const recent = recentLogs[0];
+      const recentLabel =
+        (recent.amountMl ?? 0) > 0
+          ? `${new Intl.DateTimeFormat("ko-KR", {
+              hour: "numeric",
+              minute: "2-digit"
+            }).format(recent.occurredAt)}에 ${(recent.amountMl ?? 0)}ml`
+          : "방금 전 분유";
+
       return {
         suspicious: true,
-        question: `${new Intl.DateTimeFormat("ko-KR", {
-          hour: "numeric",
-          minute: "2-digit"
-        }).format(recent.occurredAt)}에 ${(recent.amountMl ?? 0)}ml 기록이 이미 있어요. 중복 기록이면 '취소', 실제 추가 섭취면 '추가 섭취'라고 답해주세요.`
+        question: `${recentLabel} 기록이 이미 있어요. 중복 기록이면 '취소', 실제 추가 섭취면 '추가 섭취'라고 답해주세요.`
       };
     }
 
