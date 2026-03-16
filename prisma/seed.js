@@ -15,7 +15,7 @@ async function main() {
     data: {
       id: "baby_sunjae",
       name: "선재",
-      birthDate: new Date("2025-05-02T00:00:00+09:00"),
+      birthDate: new Date("2025-05-31T00:00:00+09:00"),
       sex: "male",
       latestWeightKg: 9.1,
       latestHeightCm: 73.5,

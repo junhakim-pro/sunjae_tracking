@@ -1,8 +1,14 @@
 import { NextRequest, NextResponse } from "next/server";
 import { parseImageBatchWithAI, parseImageWithAI, parseTextWithAI } from "@/lib/ai";
 import { buildHeuristicParsedLog } from "@/lib/chat-heuristics";
-import { createLog, getDashboardSnapshot, getTodayImageUsage } from "@/lib/data";
+import {
+  createGrowthMeasurement,
+  createLog,
+  getDashboardSnapshot,
+  getTodayImageUsage
+} from "@/lib/data";
 import { ParsedChatLog } from "@/lib/types";
+import { parseGrowthText } from "@/lib/growth";
 
 async function parseQuickText(text: string) {
   const nowIso = new Date().toISOString();
@@ -170,6 +176,22 @@ export async function POST(request: NextRequest) {
     if (text) {
       parsedEntries = [await parseQuickText(text)];
     }
+  }
+
+  const growthUpdate = rawText ? parseGrowthText(rawText) : null;
+
+  if (growthUpdate) {
+    await createGrowthMeasurement({
+      ...growthUpdate,
+      createdBy: "웹 빠른 입력",
+      sourceType: "web_form",
+      rawText
+    });
+
+    return NextResponse.json({
+      ok: true,
+      message: `성장 기록을 업데이트했어요. 몸무게 ${growthUpdate.weightKg ?? "-"}kg / 키 ${growthUpdate.heightCm ?? "-"}cm`
+    });
   }
 
   if (!parsedEntries.length) {

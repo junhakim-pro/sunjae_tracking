@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import {
+  createGrowthMeasurement,
   createLog,
   createPendingConfirmation,
   deletePendingConfirmation,
@@ -18,6 +19,7 @@ import {
   sendTelegramMessage
 } from "@/lib/telegram";
 import { buildHeuristicParsedLog } from "@/lib/chat-heuristics";
+import { parseGrowthText } from "@/lib/growth";
 
 interface TelegramWebhookPayload {
   message?: {
@@ -291,6 +293,25 @@ export async function POST(request: NextRequest) {
 
   const text = payload.message?.text?.trim();
   const textIntent = text ? classifyTelegramText(text) : null;
+  const growthUpdate = text ? parseGrowthText(text) : null;
+
+  if (growthUpdate) {
+    await createGrowthMeasurement({
+      ...growthUpdate,
+      createdBy,
+      sourceType: "chat_text",
+      rawText: text
+    });
+
+    const growthReply = `성장 기록을 업데이트했어요.\n몸무게 ${growthUpdate.weightKg ?? "-"}kg / 키 ${growthUpdate.heightCm ?? "-"}cm`;
+    await sendTelegramMessage(chatId, growthReply);
+
+    return NextResponse.json({
+      ok: true,
+      replyText: growthReply,
+      mode: "growth"
+    });
+  }
 
   if (textIntent === "help") {
     const helpText = buildHelpText();

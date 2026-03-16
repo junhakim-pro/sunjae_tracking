@@ -9,6 +9,7 @@ import {
   TimelineEntry,
   WeeklyTrendPoint
 } from "@/lib/types";
+import { formatMonthAgeLabel, resolveBirthDate } from "@/lib/growth";
 
 const BABY_ID = "baby_sunjae";
 const DEFAULT_FORMULA_SINGLE_FEED_ML = Number(process.env.FORMULA_SINGLE_FEED_LIMIT_ML || 220);
@@ -197,8 +198,8 @@ export async function getDashboardSnapshot() {
     baby: {
       id: baby.id,
       name: baby.name,
-      birthDate: baby.birthDate.toISOString().slice(0, 10),
-      monthAgeLabel: "10개월 2주",
+      birthDate: resolveBirthDate(baby.birthDate).toISOString().slice(0, 10),
+      monthAgeLabel: formatMonthAgeLabel(baby.birthDate),
       latestWeightKg: baby.latestWeightKg ?? 0,
       latestHeightCm: baby.latestHeightCm ?? 0,
       measuredAt: latestGrowth.measuredAt.toISOString().slice(0, 10),
@@ -214,6 +215,57 @@ export async function getDashboardSnapshot() {
       imageUsesToday
     ),
     timeline: buildTimeline(intakeLogs, sleepLogs, noteLogs)
+  };
+}
+
+export async function createGrowthMeasurement(input: {
+  measuredAt: string;
+  weightKg?: number;
+  heightCm?: number;
+  createdBy: string;
+  sourceType?: "chat_text" | "chat_image" | "web_form";
+  rawText?: string;
+  rawImageUrl?: string;
+}) {
+  const sourceType = input.sourceType ? (input.sourceType as SourceType) : SourceType.web_form;
+  const rawMessage =
+    input.rawText || input.rawImageUrl
+      ? await prisma.rawMessage.create({
+          data: {
+            id: crypto.randomUUID(),
+            babyId: BABY_ID,
+            sourceType,
+            rawText: input.rawText,
+            rawImageUrl: input.rawImageUrl
+          }
+        })
+      : null;
+
+  const growth = await prisma.growthMeasurement.create({
+    data: {
+      id: crypto.randomUUID(),
+      babyId: BABY_ID,
+      measuredAt: new Date(input.measuredAt),
+      weightKg: input.weightKg,
+      heightCm: input.heightCm,
+      weightPercentile: null,
+      heightPercentile: null,
+      sourceStandard: "manual"
+    }
+  });
+
+  await prisma.baby.update({
+    where: { id: BABY_ID },
+    data: {
+      latestWeightKg: input.weightKg ?? undefined,
+      latestHeightCm: input.heightCm ?? undefined,
+      latestMeasurementAt: new Date(input.measuredAt)
+    }
+  });
+
+  return {
+    growth,
+    rawMessageId: rawMessage?.id
   };
 }
 
