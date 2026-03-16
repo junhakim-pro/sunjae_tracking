@@ -134,7 +134,7 @@ textarea {
 
 .quick-capture-form {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
+  grid-template-columns: minmax(0, 1fr) auto auto;
   gap: 12px;
   margin-top: 18px;
 }
@@ -148,6 +148,25 @@ textarea {
   background: rgba(255, 255, 255, 0.88);
   color: var(--text);
   font: inherit;
+}
+
+.quick-capture-upload {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 54px;
+  padding: 0 16px;
+  border-radius: 18px;
+  border: 1px dashed rgba(97, 79, 57, 0.22);
+  background: rgba(255, 255, 255, 0.7);
+  color: var(--muted);
+  cursor: pointer;
+  white-space: nowrap;
+  font-weight: 700;
+}
+
+.quick-capture-file {
+  display: none;
 }
 
 .quick-capture-input:focus {

@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
-import { parseTextWithAI } from "@/lib/ai";
+import { parseImageBatchWithAI, parseImageWithAI, parseTextWithAI } from "@/lib/ai";
 import { buildHeuristicParsedLog } from "@/lib/chat-heuristics";
 import { createLog, getDashboardSnapshot } from "@/lib/data";
+import { ParsedChatLog } from "@/lib/types";
 
 async function parseQuickText(text: string) {
   const nowIso = new Date().toISOString();
@@ -24,7 +25,62 @@ async function parseQuickText(text: string) {
   });
 }
 
-async function saveQuickLog(parsed: Awaited<ReturnType<typeof parseQuickText>>, rawText: string) {
+function fileToDataUrl(file: File) {
+  return file.arrayBuffer().then((buffer) => {
+    const mimeType = file.type || "image/jpeg";
+    return `data:${mimeType};base64,${Buffer.from(buffer).toString("base64")}`;
+  });
+}
+
+async function parseQuickImage(file: File, caption?: string) {
+  const imageDataUrl = await fileToDataUrl(file);
+  const nowIso = new Date().toISOString();
+
+  try {
+    const batch = await parseImageBatchWithAI({
+      imageDataUrl,
+      caption,
+      nowIso
+    });
+
+    if (batch?.length) {
+      return {
+        entries: batch,
+        rawImageUrl: file.name
+      };
+    }
+
+    const single = await parseImageWithAI({
+      imageDataUrl,
+      caption,
+      nowIso
+    });
+
+    if (single) {
+      return {
+        entries: [single],
+        rawImageUrl: file.name
+      };
+    }
+  } catch (error) {
+    console.error("Quick log image parse failed.", error);
+  }
+
+  if (caption?.trim()) {
+    return {
+      entries: [buildHeuristicParsedLog({ text: caption.trim() })],
+      rawImageUrl: file.name
+    };
+  }
+
+  return null;
+}
+
+async function saveQuickLog(
+  parsed: ParsedChatLog,
+  rawText: string,
+  rawImageUrl?: string
+) {
   if (parsed.type === "intake") {
     await createLog({
       type: "intake",
@@ -36,7 +92,8 @@ async function saveQuickLog(parsed: Awaited<ReturnType<typeof parseQuickText>>, 
       createdBy: "웹 빠른 입력",
       sourceType: "web_form",
       parseConfidence: parsed.confidence,
-      rawText
+      rawText,
+      rawImageUrl
     });
     return;
   }
@@ -48,7 +105,8 @@ async function saveQuickLog(parsed: Awaited<ReturnType<typeof parseQuickText>>, 
       endedAt: parsed.sleepEndAt,
       createdBy: "웹 빠른 입력",
       sourceType: "web_form",
-      rawText
+      rawText,
+      rawImageUrl
     });
     return;
   }
@@ -60,20 +118,52 @@ async function saveQuickLog(parsed: Awaited<ReturnType<typeof parseQuickText>>, 
     note: parsed.note ?? rawText,
     createdBy: "웹 빠른 입력",
     sourceType: "web_form",
-    rawText
+    rawText,
+    rawImageUrl
   });
 }
 
 export async function POST(request: NextRequest) {
-  const body = (await request.json()) as { text?: string };
-  const text = body.text?.trim();
+  const contentType = request.headers.get("content-type") || "";
+  let parsedEntries: ParsedChatLog[] = [];
+  let rawText = "";
+  let rawImageUrl: string | undefined;
 
-  if (!text) {
-    return NextResponse.json({ error: "입력 문장을 적어주세요." }, { status: 400 });
+  if (contentType.includes("multipart/form-data")) {
+    const formData = await request.formData();
+    const text = String(formData.get("text") || "").trim();
+    const file = formData.get("image");
+
+    rawText = text;
+
+    if (file instanceof File && file.size > 0) {
+      rawImageUrl = file.name;
+      const result = await parseQuickImage(file, text || undefined);
+
+      if (result?.entries?.length) {
+        parsedEntries = result.entries;
+      }
+    } else if (text) {
+      parsedEntries = [await parseQuickText(text)];
+    }
+  } else {
+    const body = (await request.json()) as { text?: string };
+    const text = body.text?.trim();
+    rawText = text ?? "";
+
+    if (text) {
+      parsedEntries = [await parseQuickText(text)];
+    }
   }
 
-  const parsed = await parseQuickText(text);
-  await saveQuickLog(parsed, text);
+  if (!parsedEntries.length) {
+    return NextResponse.json({ error: "입력 문장이나 사진을 넣어주세요." }, { status: 400 });
+  }
+
+  for (const parsed of parsedEntries) {
+    await saveQuickLog(parsed, rawText || parsed.note || "웹 사진 기록", rawImageUrl);
+  }
+
   const snapshot = await getDashboardSnapshot();
 
   const formulaPercent = Math.round(
@@ -83,15 +173,17 @@ export async function POST(request: NextRequest) {
     (snapshot.summary.solidFoodG / snapshot.summary.solidFoodGoalG) * 100 || 0
   );
 
+  const firstParsed = parsedEntries[0];
   const message =
-    parsed.confidence < 0.7 && parsed.followUpQuestion
-      ? `기록은 우선 남겼어요. ${parsed.followUpQuestion}`
-      : `기록했어요. 오늘 분유 ${snapshot.summary.formulaMl}ml (${formulaPercent}%), 이유식 ${snapshot.summary.solidFoodG}g (${solidPercent}%)`;
+    firstParsed.confidence < 0.7 && firstParsed.followUpQuestion
+      ? `기록은 우선 남겼어요. ${firstParsed.followUpQuestion}`
+      : parsedEntries.length > 1
+        ? `${parsedEntries.length}건 기록했어요. 오늘 분유 ${snapshot.summary.formulaMl}ml (${formulaPercent}%), 이유식 ${snapshot.summary.solidFoodG}g (${solidPercent}%)`
+        : `기록했어요. 오늘 분유 ${snapshot.summary.formulaMl}ml (${formulaPercent}%), 이유식 ${snapshot.summary.solidFoodG}g (${solidPercent}%)`;
 
   return NextResponse.json({
     ok: true,
-    parsed,
+    parsed: parsedEntries,
     message
   });
 }
-

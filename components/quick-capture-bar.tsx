@@ -6,27 +6,30 @@ import { useRouter } from "next/navigation";
 export function QuickCaptureBar() {
   const router = useRouter();
   const [text, setText] = useState("");
+  const [image, setImage] = useState<File | null>(null);
   const [status, setStatus] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
 
-    if (!text.trim()) {
+    if (!text.trim() && !image) {
       return;
     }
 
     setStatus("");
     setIsSubmitting(true);
 
+    const formData = new FormData();
+    formData.set("text", text);
+
+    if (image) {
+      formData.set("image", image);
+    }
+
     const response = await fetch("/api/quick-log", {
       method: "POST",
-      headers: {
-        "Content-Type": "application/json"
-      },
-      body: JSON.stringify({
-        text
-      })
+      body: formData
     });
 
     const data = await response.json().catch(() => null);
@@ -38,6 +41,7 @@ export function QuickCaptureBar() {
     }
 
     setText("");
+    setImage(null);
     setStatus(data?.message ?? "기록했어요.");
     setIsSubmitting(false);
     startTransition(() => router.refresh());
@@ -60,7 +64,16 @@ export function QuickCaptureBar() {
           placeholder="예제: 분유 180미리, 이유식 300g, 낮잠 1시~2시, 배변 1회"
           value={text}
         />
-        <button className="button-primary" disabled={isSubmitting || !text.trim()} type="submit">
+        <label className="quick-capture-upload">
+          <input
+            accept="image/*"
+            className="quick-capture-file"
+            onChange={(event) => setImage(event.target.files?.[0] ?? null)}
+            type="file"
+          />
+          {image ? `사진: ${image.name}` : "사진 첨부"}
+        </label>
+        <button className="button-primary" disabled={isSubmitting || (!text.trim() && !image)} type="submit">
           {isSubmitting ? "저장 중..." : "바로 기록"}
         </button>
       </form>
@@ -69,4 +82,3 @@ export function QuickCaptureBar() {
     </section>
   );
 }
-
