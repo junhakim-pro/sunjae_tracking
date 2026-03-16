@@ -5,6 +5,8 @@ import {
   deletePendingConfirmation,
   findSuspiciousIntake,
   getDashboardSnapshot,
+  hasRecentBotHint,
+  logBotHint,
   getPendingConfirmation,
   getTodayImageUsage
 } from "@/lib/data";
@@ -79,6 +81,67 @@ function extractOccurredAt(text: string, fallbackEpochSeconds?: number) {
   }
 
   return base.toISOString();
+}
+
+type TextIntent = "help" | "record" | "ambiguous" | "ignore";
+
+function classifyTelegramText(text: string): TextIntent {
+  const normalized = text.trim().toLowerCase();
+
+  if (!normalized) {
+    return "ignore";
+  }
+
+  if (
+    normalized === "/start" ||
+    normalized === "/help" ||
+    normalized.includes("도움말") ||
+    normalized.includes("사용법")
+  ) {
+    return "help";
+  }
+
+  const hasAmount = /(\d{1,4})\s*(ml|미리|밀리|cc|g|그램)/i.test(normalized);
+  const hasTime = /\b\d{1,2}[:.]\d{1,2}\b|(\d{1,2})\s*시(\s*\d{1,2}\s*분?)?/i.test(normalized);
+  const hasIntakeKeyword =
+    /분유|이유식|수유|먹음|먹었|먹었다|먹는|먹였|먹임|간식|물|죽|밥/.test(normalized);
+  const hasSleepKeyword = /낮잠|밤잠|수면|잠|기상|깸|깨서|잤|잠들/.test(normalized);
+  const hasNoteKeyword =
+    /콧물|기침|열|감기|설사|구토|변|병원|약|컨디션|메모|특이|증상|피부/.test(normalized);
+  const hasRecordKeyword = /기록|남겨|저장|추가/.test(normalized);
+  const hasSmallTalkKeyword =
+    /ㅋㅋ|ㅎㅎ|하하|고마워|좋네|알겠어|오케이|ok|배고프|사진|어디|언제|뭐해|잘자/.test(normalized);
+
+  if (hasNoteKeyword) {
+    return "record";
+  }
+
+  if ((hasIntakeKeyword && hasAmount) || (hasSleepKeyword && hasTime)) {
+    return "record";
+  }
+
+  if ((hasIntakeKeyword || hasSleepKeyword) && (hasRecordKeyword || hasTime || hasAmount)) {
+    return "record";
+  }
+
+  if (hasIntakeKeyword || hasSleepKeyword || hasRecordKeyword) {
+    return "ambiguous";
+  }
+
+  if (hasSmallTalkKeyword) {
+    return "ignore";
+  }
+
+  return "ignore";
+}
+
+function buildHelpText() {
+  return [
+    "기록 예시는 이렇게 남기면 돼요.",
+    "분유 180미리",
+    "낮잠 1시부터 2시 20분",
+    "콧물 조금 있음"
+  ].join("\n");
 }
 
 function buildMockParserResult(payload: TelegramWebhookPayload) {
@@ -309,6 +372,52 @@ export async function POST(request: NextRequest) {
       ok: true,
       confirmed: true,
       replyText
+    });
+  }
+
+  const text = payload.message?.text?.trim();
+  const textIntent = text ? classifyTelegramText(text) : null;
+
+  if (textIntent === "help") {
+    const helpText = buildHelpText();
+    await sendTelegramMessage(chatId, helpText);
+
+    return NextResponse.json({
+      ok: true,
+      replyText: helpText,
+      mode: "help"
+    });
+  }
+
+  if (text && textIntent === "ambiguous") {
+    const alreadyNudged = await hasRecentBotHint(String(chatId), "ambiguous_text", 60);
+
+    if (!alreadyNudged) {
+      const nudgeText =
+        "기록으로 이해하려면 조금만 더 구체적으로 남겨주세요. 예: 분유 180미리 / 낮잠 1시~2시 / 콧물 조금 있음";
+      await logBotHint(String(chatId), "ambiguous_text", text);
+      await sendTelegramMessage(chatId, nudgeText);
+
+      return NextResponse.json({
+        ok: true,
+        ignored: true,
+        reason: "ambiguous",
+        replyText: nudgeText
+      });
+    }
+
+    return NextResponse.json({
+      ok: true,
+      ignored: true,
+      reason: "ambiguous_silenced"
+    });
+  }
+
+  if (text && textIntent === "ignore") {
+    return NextResponse.json({
+      ok: true,
+      ignored: true,
+      reason: "small_talk"
     });
   }
 

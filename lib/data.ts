@@ -7,6 +7,7 @@ import { CaregiverSummary, DailySummary, TimelineEntry, WeeklyTrendPoint } from 
 const BABY_ID = "baby_sunjae";
 const DEFAULT_FORMULA_SINGLE_FEED_ML = Number(process.env.FORMULA_SINGLE_FEED_LIMIT_ML || 220);
 const DEFAULT_SOLID_SINGLE_FEED_G = Number(process.env.SOLID_SINGLE_FEED_LIMIT_G || 180);
+const BOT_HINT_PREFIX = "__bot_hint__";
 
 function startOfToday() {
   const now = new Date();
@@ -444,6 +445,36 @@ export async function getPendingConfirmation(chatId: string) {
 export async function deletePendingConfirmation(id: string) {
   return prisma.pendingConfirmation.delete({
     where: { id }
+  });
+}
+
+export async function hasRecentBotHint(chatId: string, kind: string, withinMinutes = 60) {
+  const since = new Date(Date.now() - withinMinutes * 60 * 1000);
+
+  const count = await prisma.rawMessage.count({
+    where: {
+      babyId: BABY_ID,
+      sourceType: SourceType.chat_text,
+      receivedAt: {
+        gte: since
+      },
+      rawText: {
+        startsWith: `${BOT_HINT_PREFIX}:${kind}:${chatId}:`
+      }
+    }
+  });
+
+  return count > 0;
+}
+
+export async function logBotHint(chatId: string, kind: string, rawText?: string) {
+  return prisma.rawMessage.create({
+    data: {
+      id: crypto.randomUUID(),
+      babyId: BABY_ID,
+      sourceType: SourceType.chat_text,
+      rawText: `${BOT_HINT_PREFIX}:${kind}:${chatId}:${rawText ?? ""}`.slice(0, 1900)
+    }
   });
 }
 
