@@ -212,12 +212,14 @@ export async function POST(request: NextRequest) {
   );
 
   const firstParsed = parsedEntries[0];
-  const message =
-    firstParsed.confidence < 0.7 && firstParsed.followUpQuestion
-      ? `기록은 우선 남겼어요. ${firstParsed.followUpQuestion}`
-      : parsedEntries.length > 1
-        ? `${parsedEntries.length}건 기록했어요. 오늘 분유 ${snapshot.summary.formulaMl}ml (${formulaPercent}%), 이유식 ${snapshot.summary.solidFoodG}g (${solidPercent}%)`
-        : `기록했어요. 오늘 분유 ${snapshot.summary.formulaMl}ml (${formulaPercent}%), 이유식 ${snapshot.summary.solidFoodG}g (${solidPercent}%)`;
+  const needsClarification = firstParsed.confidence < 0.7 && firstParsed.followUpQuestion;
+  const message = needsClarification
+    ? rawImageUrl && !rawText
+      ? "사진 기록은 우선 메모로 남겼어요. 더 정확히 저장하려면 바로 위 입력칸에 `분유 기록`, `이유식 기록`, `수면 기록`, `메모` 중 하나를 적고 다시 저장해 주세요."
+      : `기록은 우선 남겼어요. ${firstParsed.followUpQuestion}`
+    : parsedEntries.length > 1
+      ? `${parsedEntries.length}건 기록했어요. 오늘 분유 ${snapshot.summary.formulaMl}ml (${formulaPercent}%), 이유식 ${snapshot.summary.solidFoodG}g (${solidPercent}%)`
+      : `기록했어요. 오늘 분유 ${snapshot.summary.formulaMl}ml (${formulaPercent}%), 이유식 ${snapshot.summary.solidFoodG}g (${solidPercent}%)`;
 
   return NextResponse.json({
     ok: true,
