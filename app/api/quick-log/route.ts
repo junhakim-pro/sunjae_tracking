@@ -73,7 +73,14 @@ async function parseQuickImage(file: File, caption?: string) {
     };
   }
 
-  return null;
+  return {
+    entries: [
+      buildHeuristicParsedLog({
+        text: "사진 업로드 기록"
+      })
+    ],
+    rawImageUrl: file.name
+  };
 }
 
 async function saveQuickLog(
