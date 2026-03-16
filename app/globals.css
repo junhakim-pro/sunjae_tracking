@@ -414,9 +414,17 @@ textarea {
 
 .timeline-head {
   display: flex;
-  align-items: center;
+  align-items: start;
   justify-content: space-between;
   gap: 12px;
+}
+
+.timeline-head-main {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+  flex-wrap: wrap;
 }
 
 .timeline-type {
@@ -429,6 +437,53 @@ textarea {
   background: var(--mint-soft);
   color: #45675d;
   font-weight: 700;
+}
+
+.timeline-actions-menu {
+  position: relative;
+  flex: 0 0 auto;
+}
+
+.icon-button {
+  width: 34px;
+  height: 34px;
+  border: 1px solid rgba(94, 78, 58, 0.1);
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.76);
+  color: var(--muted);
+  font-size: 20px;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.timeline-menu-popover {
+  position: absolute;
+  top: calc(100% + 8px);
+  right: 0;
+  z-index: 3;
+  display: grid;
+  gap: 6px;
+  min-width: 116px;
+  padding: 8px;
+  border-radius: 16px;
+  border: 1px solid rgba(94, 78, 58, 0.1);
+  background: rgba(255, 251, 246, 0.98);
+  box-shadow: 0 20px 36px rgba(61, 41, 24, 0.12);
+}
+
+.menu-action {
+  min-height: 36px;
+  padding: 0 12px;
+  border: 0;
+  border-radius: 12px;
+  background: rgba(31, 27, 22, 0.04);
+  color: var(--text);
+  text-align: left;
+  cursor: pointer;
+}
+
+.menu-action:hover {
+  background: rgba(213, 109, 56, 0.08);
 }
 
 .timeline-item p,

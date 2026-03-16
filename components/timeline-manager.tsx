@@ -14,6 +14,7 @@ function toLocalInputValue(input: string) {
 export function TimelineManager({ items }: { items: TimelineEntry[] }) {
   const router = useRouter();
   const [editingId, setEditingId] = useState<string | null>(null);
+  const [menuOpenId, setMenuOpenId] = useState<string | null>(null);
   const [status, setStatus] = useState<string>("");
 
   async function deleteItem(item: TimelineEntry) {
@@ -30,6 +31,7 @@ export function TimelineManager({ items }: { items: TimelineEntry[] }) {
     }
 
     setStatus("기록을 삭제했어요.");
+    setMenuOpenId(null);
     startTransition(() => router.refresh());
   }
 
@@ -79,6 +81,7 @@ export function TimelineManager({ items }: { items: TimelineEntry[] }) {
 
     setStatus("기록을 수정했어요.");
     setEditingId(null);
+    setMenuOpenId(null);
     startTransition(() => router.refresh());
   }
 
@@ -90,8 +93,41 @@ export function TimelineManager({ items }: { items: TimelineEntry[] }) {
         return (
           <div className="timeline-item" key={item.id}>
             <div className="timeline-head">
-              <strong>{item.title}</strong>
-              <span className="timeline-type">{item.badge}</span>
+              <div className="timeline-head-main">
+                <strong>{item.title}</strong>
+                <span className="timeline-type">{item.badge}</span>
+              </div>
+
+              {!isEditing ? (
+                <div className="timeline-actions-menu">
+                  <button
+                    aria-expanded={menuOpenId === item.id}
+                    className="icon-button"
+                    onClick={() => setMenuOpenId((current) => (current === item.id ? null : item.id))}
+                    type="button"
+                  >
+                    ⋯
+                  </button>
+
+                  {menuOpenId === item.id ? (
+                    <div className="timeline-menu-popover">
+                      <button
+                        className="menu-action"
+                        onClick={() => {
+                          setEditingId(item.id);
+                          setMenuOpenId(null);
+                        }}
+                        type="button"
+                      >
+                        수정
+                      </button>
+                      <button className="menu-action danger" onClick={() => deleteItem(item)} type="button">
+                        삭제
+                      </button>
+                    </div>
+                  ) : null}
+                </div>
+              ) : null}
             </div>
 
             {!isEditing ? (
@@ -101,14 +137,6 @@ export function TimelineManager({ items }: { items: TimelineEntry[] }) {
                   <span>{formatDateTimeLabel(item.happenedAt)}</span>
                   <span>입력자 {item.createdBy}</span>
                   {item.note ? <span>{item.note}</span> : null}
-                </div>
-                <div className="row-actions">
-                  <button className="button-secondary" onClick={() => setEditingId(item.id)} type="button">
-                    수정
-                  </button>
-                  <button className="button-secondary danger" onClick={() => deleteItem(item)} type="button">
-                    삭제
-                  </button>
                 </div>
               </>
             ) : (
