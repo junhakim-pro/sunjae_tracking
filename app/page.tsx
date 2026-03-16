@@ -66,12 +66,11 @@ export default async function HomePage() {
       <section className="hero">
         <span className="eyebrow">Sunjae Care Log</span>
         <div className="hero-grid">
-          <div>
+          <div className="hero-copy">
             <h1>가족 대화를 아이 성장 로그로 바꾸는 MVP</h1>
             <p>
-              카카오톡이나 텔레그램에 자연스럽게 남긴 말과 사진을 AI가 읽고, 분유·이유식·수면·메모를
-              하루 흐름으로 정리합니다. 목표 대비 달성률과 다음 식사 추천까지 바로 보여주는 방향으로
-              설계했습니다.
+              텔레그램에 자연스럽게 남긴 말과 사진을 AI가 읽고, 분유·이유식·수면·메모를 하루 흐름으로
+              정리합니다. 목표 대비 달성률과 다음 식사 추천까지 바로 보여주는 방향으로 설계했습니다.
             </p>
             <div className="hero-actions">
               <a className="button-primary" href="#dashboard">
@@ -86,9 +85,27 @@ export default async function HomePage() {
               <span className="pill">OCR 하루 {summary.imageDailyLimit}회 제한</span>
               <span className="pill">성장 퍼센타일 추적</span>
             </div>
+
+            <div className="hero-stat-grid">
+              <article className="hero-stat-card">
+                <span>오늘 분유</span>
+                <strong>{summary.formulaMl}ml</strong>
+                <small>목표 대비 {formatPercent(summary.formulaMl, summary.formulaGoalMl)}%</small>
+              </article>
+              <article className="hero-stat-card">
+                <span>오늘 수면</span>
+                <strong>{summary.sleepHours}시간</strong>
+                <small>낮잠과 밤잠 흐름 포함</small>
+              </article>
+              <article className="hero-stat-card">
+                <span>다음 식사</span>
+                <strong>{formatTimeLabel(summary.suggestedNextFeedAt)}</strong>
+                <small>{summary.suggestedWindowHours}시간 간격 기준</small>
+              </article>
+            </div>
           </div>
 
-          <div className="panel">
+          <div className="panel hero-profile">
             <h2>선재 프로필</h2>
             <div className="summary-stack">
               <div className="summary-item">
@@ -116,7 +133,18 @@ export default async function HomePage() {
         </div>
       </section>
 
-      <section id="dashboard" className="dashboard-grid">
+      <section className="section-heading-block">
+        <span className="section-kicker">Overview</span>
+        <div className="section-heading-row">
+          <div>
+            <h2>오늘 흐름을 한눈에 보는 대시보드</h2>
+            <p>숫자는 빠르게, 맥락은 자연스럽게 읽히도록 핵심 카드부터 타임라인까지 한 화면에 모았습니다.</p>
+          </div>
+          <div className="section-chip">실시간 갱신</div>
+        </div>
+      </section>
+
+      <section id="dashboard" className="dashboard-grid dashboard-grid--metrics">
         {metricCards.map((card) => (
           <article className="metric-card" key={card.label}>
             <div className="metric-label">{card.label}</div>
