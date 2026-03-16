@@ -1,7 +1,19 @@
 import { WeeklyTrendPoint } from "@/lib/types";
 
 function maxValue(points: WeeklyTrendPoint[], key: keyof WeeklyTrendPoint) {
-  return Math.max(...points.map((point) => (typeof point[key] === "number" ? (point[key] as number) : 0)), 1);
+  return Math.max(
+    ...points.map((point) => (typeof point[key] === "number" ? (point[key] as number) : 0)),
+    1
+  );
+}
+
+function average(points: WeeklyTrendPoint[], key: keyof WeeklyTrendPoint) {
+  const total = points.reduce(
+    (sum, point) => sum + (typeof point[key] === "number" ? (point[key] as number) : 0),
+    0
+  );
+
+  return Math.round((total / Math.max(points.length, 1)) * 10) / 10;
 }
 
 export function WeeklyTrend({ points }: { points: WeeklyTrendPoint[] }) {
@@ -11,62 +23,71 @@ export function WeeklyTrend({ points }: { points: WeeklyTrendPoint[] }) {
 
   return (
     <div className="trend-stack">
-      <div className="trend-group">
-        <div className="trend-header">
-          <strong>최근 7일 분유</strong>
-          <span>최대 {maxFormula}ml</span>
-        </div>
-        <div className="trend-bars">
-          {points.map((point) => (
-            <div className="trend-bar-card" key={`formula-${point.dateLabel}`}>
-              <div className="trend-bar formula" style={{ height: `${(point.formulaMl / maxFormula) * 100}%` }} />
-              <strong>{point.formulaMl}</strong>
-              <span>{point.dateLabel}</span>
-            </div>
-          ))}
-        </div>
+      <div className="trend-overview-grid">
+        <article className="trend-overview-card formula">
+          <span>분유 평균</span>
+          <strong>{average(points, "formulaMl")}ml</strong>
+          <small>최근 7일 중 최대 {maxFormula}ml</small>
+        </article>
+        <article className="trend-overview-card solid">
+          <span>이유식 평균</span>
+          <strong>{average(points, "solidFoodG")}g</strong>
+          <small>최근 7일 중 최대 {maxSolid}g</small>
+        </article>
+        <article className="trend-overview-card sleep">
+          <span>수면 평균</span>
+          <strong>{average(points, "sleepHours")}시간</strong>
+          <small>최근 7일 중 최대 {maxSleep}시간</small>
+        </article>
       </div>
 
-      <div className="trend-group">
-        <div className="trend-header">
-          <strong>최근 7일 이유식</strong>
-          <span>최대 {maxSolid}g</span>
-        </div>
-        <div className="trend-bars">
-          {points.map((point) => (
-            <div className="trend-bar-card" key={`solid-${point.dateLabel}`}>
-              <div className="trend-bar solid" style={{ height: `${(point.solidFoodG / maxSolid) * 100}%` }} />
-              <strong>{point.solidFoodG}</strong>
-              <span>{point.dateLabel}</span>
-            </div>
-          ))}
-        </div>
-      </div>
-
-      <div className="trend-summary-grid">
+      <div className="trend-daily-grid">
         {points.map((point) => (
-          <article className="trend-summary-card" key={`summary-${point.dateLabel}`}>
-            <strong>{point.dateLabel}</strong>
-            <span>분유 {point.formulaMl}ml</span>
-            <span>이유식 {point.solidFoodG}g</span>
-            <span>수면 {point.sleepHours}시간</span>
-            <span>메모 {point.noteCount}건</span>
-            <div className="mini-meter-row">
-              <div className="mini-meter">
+          <article className="trend-day-card" key={point.dateLabel}>
+            <div className="trend-day-head">
+              <strong>{point.dateLabel}</strong>
+              <span>메모 {point.noteCount}건</span>
+            </div>
+
+            <div className="trend-metric-list">
+              <div className="trend-metric-row">
+                <div className="trend-metric-label">
+                  <span className="trend-dot formula" />
+                  <span>분유</span>
+                </div>
+                <strong>{point.formulaMl}ml</strong>
+              </div>
+              <div className="trend-meter">
                 <div
-                  className="mini-meter-fill formula"
+                  className="trend-meter-fill formula"
                   style={{ width: `${Math.min((point.formulaMl / maxFormula) * 100, 100)}%` }}
                 />
               </div>
-              <div className="mini-meter">
+
+              <div className="trend-metric-row">
+                <div className="trend-metric-label">
+                  <span className="trend-dot solid" />
+                  <span>이유식</span>
+                </div>
+                <strong>{point.solidFoodG}g</strong>
+              </div>
+              <div className="trend-meter">
                 <div
-                  className="mini-meter-fill solid"
+                  className="trend-meter-fill solid"
                   style={{ width: `${Math.min((point.solidFoodG / maxSolid) * 100, 100)}%` }}
                 />
               </div>
-              <div className="mini-meter">
+
+              <div className="trend-metric-row">
+                <div className="trend-metric-label">
+                  <span className="trend-dot sleep" />
+                  <span>수면</span>
+                </div>
+                <strong>{point.sleepHours}시간</strong>
+              </div>
+              <div className="trend-meter">
                 <div
-                  className="mini-meter-fill sleep"
+                  className="trend-meter-fill sleep"
                   style={{ width: `${Math.min((point.sleepHours / maxSleep) * 100, 100)}%` }}
                 />
               </div>
