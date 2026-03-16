@@ -169,6 +169,22 @@ textarea {
   display: none;
 }
 
+.quick-capture-preview {
+  margin-top: 14px;
+  padding: 10px;
+  border-radius: 18px;
+  background: rgba(255, 255, 255, 0.62);
+  border: 1px solid rgba(97, 79, 57, 0.1);
+}
+
+.quick-capture-preview-image {
+  display: block;
+  width: 100%;
+  max-height: 220px;
+  object-fit: cover;
+  border-radius: 12px;
+}
+
 .quick-capture-input:focus {
   outline: none;
   border-color: rgba(213, 109, 56, 0.34);

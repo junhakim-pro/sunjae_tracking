@@ -1,14 +1,29 @@
 "use client";
 
-import { FormEvent, startTransition, useState } from "react";
+import { FormEvent, startTransition, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 
 export function QuickCaptureBar() {
   const router = useRouter();
   const [text, setText] = useState("");
   const [image, setImage] = useState<File | null>(null);
+  const [previewUrl, setPreviewUrl] = useState<string>("");
   const [status, setStatus] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
+
+  useEffect(() => {
+    if (!image) {
+      setPreviewUrl("");
+      return;
+    }
+
+    const objectUrl = URL.createObjectURL(image);
+    setPreviewUrl(objectUrl);
+
+    return () => {
+      URL.revokeObjectURL(objectUrl);
+    };
+  }, [image]);
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -77,6 +92,12 @@ export function QuickCaptureBar() {
           {isSubmitting ? "저장 중..." : "바로 기록"}
         </button>
       </form>
+
+      {previewUrl ? (
+        <div className="quick-capture-preview">
+          <img alt="업로드할 기록 사진 미리보기" className="quick-capture-preview-image" src={previewUrl} />
+        </div>
+      ) : null}
 
       {status ? <div className="form-status">{status}</div> : null}
     </section>

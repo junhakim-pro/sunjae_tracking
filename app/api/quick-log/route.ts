@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { parseImageBatchWithAI, parseImageWithAI, parseTextWithAI } from "@/lib/ai";
 import { buildHeuristicParsedLog } from "@/lib/chat-heuristics";
-import { createLog, getDashboardSnapshot } from "@/lib/data";
+import { createLog, getDashboardSnapshot, getTodayImageUsage } from "@/lib/data";
 import { ParsedChatLog } from "@/lib/types";
 
 async function parseQuickText(text: string) {
@@ -137,6 +137,15 @@ export async function POST(request: NextRequest) {
     rawText = text;
 
     if (file instanceof File && file.size > 0) {
+      const imageUsesToday = await getTodayImageUsage();
+
+      if (imageUsesToday >= 2) {
+        return NextResponse.json(
+          { error: "오늘 사진 인식은 2회까지예요. 지금은 텍스트로 남겨주세요." },
+          { status: 429 }
+        );
+      }
+
       rawImageUrl = file.name;
       const result = await parseQuickImage(file, text || undefined);
 

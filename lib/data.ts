@@ -437,7 +437,9 @@ export async function getTodayImageUsage() {
   return prisma.rawMessage.count({
     where: {
       babyId: BABY_ID,
-      sourceType: SourceType.chat_image,
+      rawImageUrl: {
+        not: null
+      },
       receivedAt: {
         gte: startOfToday(),
         lt: endOfToday()
