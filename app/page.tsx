@@ -3,7 +3,7 @@ import { LogEntryForm } from "@/components/log-entry-form";
 import { TimelineManager } from "@/components/timeline-manager";
 import { WeeklyTrend } from "@/components/weekly-trend";
 import { chatExamples } from "@/lib/mock-data";
-import { getCaregivers, getDashboardSnapshot, getWeeklyTrend } from "@/lib/data";
+import { getCaregivers, getDashboardSnapshot, getFoodInsights, getWeeklyTrend } from "@/lib/data";
 import { formatDateTimeLabel, formatTimeLabel, formatPercent } from "@/lib/format";
 
 const documentCards = [
@@ -27,10 +27,11 @@ const documentCards = [
 export const dynamic = "force-dynamic";
 
 export default async function HomePage() {
-  const [{ baby, summary, timeline }, weeklyTrend, caregivers] = await Promise.all([
+  const [{ baby, summary, timeline }, weeklyTrend, caregivers, foodInsights] = await Promise.all([
     getDashboardSnapshot(),
     getWeeklyTrend(),
-    getCaregivers()
+    getCaregivers(),
+    getFoodInsights()
   ]);
   const metricCards = [
     {
@@ -238,6 +239,61 @@ export default async function HomePage() {
             <div className="doc-list-item">
               <strong>공유</strong>
               <span>누가 남긴 기록인지 타임라인과 보호자 목록에서 함께 보입니다.</span>
+            </div>
+          </div>
+        </article>
+      </section>
+
+      <section className="detail-grid">
+        <article className="timeline-card">
+          <h3>먹어본 재료와 반응</h3>
+          <p>이유식에서 일반 식단으로 넘어갈수록 좋아한 재료와 주의할 반응을 같이 남기면 식단 짜기가 훨씬 쉬워집니다.</p>
+          <div className="check-list" style={{ marginTop: 16 }}>
+            <div className="doc-list-item">
+              <strong>좋아한 음식</strong>
+              {foodInsights.favorites.length ? (
+                foodInsights.favorites.map((item) => (
+                  <span key={`favorite-${item.label}`}>
+                    {item.label} · {item.detail}
+                  </span>
+                ))
+              ) : (
+                <span>아직 좋아하는 음식 힌트가 충분하지 않아요. 잘 먹은 음식 이름과 반응을 메모로 남겨보세요.</span>
+              )}
+            </div>
+            <div className="doc-list-item">
+              <strong>주의할 메모</strong>
+              {foodInsights.cautionItems.length ? (
+                foodInsights.cautionItems.map((item) => (
+                  <span key={`caution-${item.label}`}>
+                    {item.label} · {item.detail}
+                  </span>
+                ))
+              ) : (
+                <span>현재까지 눈에 띄는 알러지/거부 반응 메모는 없어요.</span>
+              )}
+            </div>
+          </div>
+        </article>
+
+        <article className="chat-card">
+          <h3>최근 시도한 재료</h3>
+          <p>음식 이름을 남길수록 “무엇을 먹어봤는지”와 “어떤 재료를 좋아했는지”가 더 정확해집니다.</p>
+          <div className="pill-row" style={{ marginTop: 18 }}>
+            {foodInsights.recentIngredients.length ? (
+              foodInsights.recentIngredients.map((ingredient) => (
+                <span className="pill" key={ingredient}>
+                  {ingredient}
+                </span>
+              ))
+            ) : (
+              <span className="pill">최근 기록된 재료 없음</span>
+            )}
+          </div>
+          <div className="panel" style={{ marginTop: 16, padding: 16 }}>
+            <strong>메모 팁</strong>
+            <div className="metric-note">
+              예: 닭고기브로콜리 이유식 잘 먹음, 계란 노른자 먹고 볼이 조금 붉어짐
             </div>
           </div>
         </article>

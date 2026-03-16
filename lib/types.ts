@@ -101,6 +101,17 @@ export interface WeeklyTrendPoint {
   noteCount: number;
 }
 
+export interface FoodInsightItem {
+  label: string;
+  detail: string;
+}
+
+export interface FoodInsights {
+  favorites: FoodInsightItem[];
+  cautionItems: FoodInsightItem[];
+  recentIngredients: string[];
+}
+
 export interface ParsedChatLog {
   type: "intake" | "sleep" | "note";
   occurredAt?: string;

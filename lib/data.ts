@@ -2,7 +2,13 @@ import { NoteCategory, SourceType } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { CreateLogInput } from "@/lib/log-schema";
 import { dailySummary as fallbackSummary } from "@/lib/mock-data";
-import { CaregiverSummary, DailySummary, TimelineEntry, WeeklyTrendPoint } from "@/lib/types";
+import {
+  CaregiverSummary,
+  DailySummary,
+  FoodInsights,
+  TimelineEntry,
+  WeeklyTrendPoint
+} from "@/lib/types";
 
 const BABY_ID = "baby_sunjae";
 const DEFAULT_FORMULA_SINGLE_FEED_ML = Number(process.env.FORMULA_SINGLE_FEED_LIMIT_ML || 220);
@@ -36,6 +42,21 @@ function formatDayLabel(date: Date) {
 
 function toIso(date: Date) {
   return date.toISOString();
+}
+
+function normalizeIngredientLabel(input: string) {
+  return input
+    .replace(/이유식|퓨레|죽|밥|간식|먹음|먹었음|먹음\b|시도/g, " ")
+    .replace(/[(),/]/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function splitIngredients(input: string) {
+  return normalizeIngredientLabel(input)
+    .split(/[\s+·-]+/)
+    .map((part) => part.trim())
+    .filter((part) => part.length >= 2);
 }
 
 function calculateSummary(
@@ -247,6 +268,100 @@ export async function getWeeklyTrend(): Promise<WeeklyTrendPoint[]> {
       noteCount: dayNotes.length
     };
   });
+}
+
+export async function getFoodInsights(): Promise<FoodInsights> {
+  const since = addDays(startOfToday(), -30);
+  const [intakeLogs, noteLogs] = await Promise.all([
+    prisma.intakeLog.findMany({
+      where: {
+        babyId: BABY_ID,
+        intakeType: {
+          in: ["solid_food", "snack"]
+        },
+        occurredAt: {
+          gte: since
+        }
+      },
+      orderBy: { occurredAt: "desc" },
+      take: 60
+    }),
+    prisma.noteLog.findMany({
+      where: {
+        babyId: BABY_ID,
+        occurredAt: {
+          gte: since
+        }
+      },
+      orderBy: { occurredAt: "desc" },
+      take: 40
+    })
+  ]);
+
+  const favoriteKeywords = /잘 먹|좋아|맛있|완밥|남기지 않|더 달라|잘 먹음/;
+  const cautionKeywords = /알러지|알레르기|두드러기|발진|설사|구토|복통|피부|붉|트러블|거부|안 먹|뱉/;
+
+  const favoriteMap = new Map<string, { count: number; detail: string }>();
+  const cautionItems: FoodInsights["cautionItems"] = [];
+  const recentIngredients: string[] = [];
+
+  for (const log of intakeLogs) {
+    const source = [log.foodName, log.notes].filter(Boolean).join(" ");
+
+    if (!source) {
+      continue;
+    }
+
+    const normalizedFood = normalizeIngredientLabel(log.foodName ?? source);
+
+    if (normalizedFood && !recentIngredients.includes(normalizedFood)) {
+      recentIngredients.push(normalizedFood);
+    }
+
+    if (favoriteKeywords.test(source)) {
+      const current = favoriteMap.get(normalizedFood) ?? { count: 0, detail: "최근 기록에서 잘 먹은 음식" };
+      favoriteMap.set(normalizedFood, {
+        count: current.count + 1,
+        detail: log.notes?.trim() || current.detail
+      });
+    }
+
+    if (cautionKeywords.test(source) && normalizedFood) {
+      cautionItems.push({
+        label: normalizedFood,
+        detail: log.notes?.trim() || "주의가 필요해 보여요."
+      });
+    }
+  }
+
+  for (const note of noteLogs) {
+    if (!cautionKeywords.test(note.note)) {
+      continue;
+    }
+
+    const ingredient =
+      splitIngredients(note.note).find((part) => !["조금", "많이", "오늘", "어제"].includes(part)) ??
+      "반응 메모";
+
+    cautionItems.push({
+      label: ingredient,
+      detail: note.note
+    });
+  }
+
+  const favorites = Array.from(favoriteMap.entries())
+    .sort((a, b) => b[1].count - a[1].count)
+    .slice(0, 4)
+    .map(([label, value]) => ({
+      label,
+      detail: value.count > 1 ? `${value.detail} · 최근 ${value.count}번 긍정 반응` : value.detail
+    }));
+
+  return {
+    favorites,
+    cautionItems: cautionItems.slice(0, 4),
+    recentIngredients: recentIngredients.slice(0, 8)
+  };
 }
 
 export async function createLog(input: CreateLogInput) {
