@@ -4,13 +4,14 @@
   "private": true,
   "scripts": {
     "dev": "next dev",
-    "build": "next build",
+    "build": "prisma generate && next build",
     "start": "next start",
     "lint": "next lint",
     "db:generate": "prisma generate",
     "db:init": "sqlite3 prisma/app.db < prisma/init.sql",
     "db:push": "prisma db push",
-    "db:seed": "prisma db seed"
+    "db:seed": "prisma db seed",
+    "postinstall": "prisma generate"
   },
   "dependencies": {
     "@prisma/client": "^6.16.2",
