@@ -56,6 +56,7 @@ export interface DailySummary {
   solidFoodG: number;
   solidFoodGoalG: number;
   sleepHours: number;
+  stoolCount: number;
   suggestedNextFeedAt: string;
   suggestedWindowHours: number;
   imageUsesToday: number;

@@ -18,6 +18,7 @@ export const dailySummary: DailySummary = {
   solidFoodG: 255,
   solidFoodGoalG: 360,
   sleepHours: 2.8,
+  stoolCount: 1,
   suggestedNextFeedAt: "2026-03-15T19:30:00+09:00",
   suggestedWindowHours: 3,
   imageUsesToday: 1,

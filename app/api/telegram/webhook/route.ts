@@ -174,6 +174,16 @@ function buildMockParserResult(payload: TelegramWebhookPayload) {
     });
   }
 
+  if (text.includes("배변") || text.includes("대변") || text.includes("변")) {
+    return validateParsedLog({
+      type: "note",
+      occurredAt,
+      noteCategory: text.includes("설사") || text.includes("묽") ? "symptom" : "condition",
+      note: text,
+      confidence: 0.9
+    });
+  }
+
   if (text.includes("낮잠") || text.includes("잠")) {
     const now = new Date();
     return validateParsedLog({
@@ -326,6 +336,7 @@ async function buildReplyText() {
     "기록했어요.",
     `오늘 분유 ${snapshot.summary.formulaMl}ml (${formulaPercent}%)`,
     `오늘 이유식 ${snapshot.summary.solidFoodG}g (${solidPercent}%)`,
+    `오늘 대변 ${snapshot.summary.stoolCount}회`,
     `다음 식사 추천 ${new Intl.DateTimeFormat("ko-KR", {
       hour: "numeric",
       minute: "2-digit"

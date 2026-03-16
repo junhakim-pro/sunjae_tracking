@@ -63,6 +63,7 @@ function calculateSummary(
   formulaMl: number,
   solidFoodG: number,
   sleepMinutes: number,
+  stoolCount: number,
   latestIntakeAt?: Date,
   imageUsesToday = 0
 ): DailySummary {
@@ -75,6 +76,7 @@ function calculateSummary(
     solidFoodG,
     solidFoodGoalG: fallbackSummary.solidFoodGoalG,
     sleepHours: Math.round((sleepMinutes / 60) * 10) / 10,
+    stoolCount,
     suggestedNextFeedAt: nextFeedAt.toISOString(),
     suggestedWindowHours: 3,
     imageUsesToday,
@@ -189,6 +191,7 @@ export async function getDashboardSnapshot() {
   const formulaMl = intakeLogs.reduce((sum, item) => sum + (item.amountMl ?? 0), 0);
   const solidFoodG = intakeLogs.reduce((sum, item) => sum + (item.amountG ?? 0), 0);
   const sleepMinutes = sleepLogs.reduce((sum, item) => sum + item.durationMin, 0);
+  const stoolCount = noteLogs.filter((item) => /배변|대변/.test(item.note)).length;
 
   return {
     baby: {
@@ -206,6 +209,7 @@ export async function getDashboardSnapshot() {
       formulaMl,
       solidFoodG,
       sleepMinutes,
+      stoolCount,
       intakeLogs[0]?.occurredAt,
       imageUsesToday
     ),

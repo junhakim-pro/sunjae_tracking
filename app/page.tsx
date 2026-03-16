@@ -56,6 +56,11 @@ export default async function HomePage() {
       note: "낮잠과 밤잠을 같은 타임라인에서 추적"
     },
     {
+      label: "오늘 대변",
+      value: `${summary.stoolCount}회`,
+      note: "배변 메모가 남으면 자동 집계"
+    },
+    {
       label: "다음 식사 추천",
       value: formatTimeLabel(summary.suggestedNextFeedAt),
       note: `${summary.suggestedWindowHours}시간 간격 기준`
