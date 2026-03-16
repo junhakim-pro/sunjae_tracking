@@ -5,6 +5,8 @@ import { dailySummary as fallbackSummary } from "@/lib/mock-data";
 import { CaregiverSummary, DailySummary, TimelineEntry, WeeklyTrendPoint } from "@/lib/types";
 
 const BABY_ID = "baby_sunjae";
+const DEFAULT_FORMULA_SINGLE_FEED_ML = Number(process.env.FORMULA_SINGLE_FEED_LIMIT_ML || 220);
+const DEFAULT_SOLID_SINGLE_FEED_G = Number(process.env.SOLID_SINGLE_FEED_LIMIT_G || 180);
 
 function startOfToday() {
   const now = new Date();
@@ -321,6 +323,122 @@ export async function getTodayImageUsage() {
         lt: endOfToday()
       }
     }
+  });
+}
+
+export async function findSuspiciousIntake(input: {
+  occurredAt: string;
+  intakeType: "formula" | "solid_food" | "water" | "snack";
+  amountMl?: number;
+  amountG?: number;
+}) {
+  const occurredAt = new Date(input.occurredAt);
+  const windowStart = new Date(occurredAt.getTime() - 15 * 60 * 1000);
+  const recentLogs = await prisma.intakeLog.findMany({
+    where: {
+      babyId: BABY_ID,
+      intakeType: input.intakeType,
+      occurredAt: {
+        gte: windowStart,
+        lte: occurredAt
+      }
+    },
+    orderBy: { occurredAt: "desc" },
+    take: 5
+  });
+
+  if (input.intakeType === "formula" || input.intakeType === "water") {
+    const candidateAmount = input.amountMl ?? 0;
+    const totalAmount = recentLogs.reduce((sum, log) => sum + (log.amountMl ?? 0), 0) + candidateAmount;
+    const hasVerySimilarRecent = recentLogs.some((log) => {
+      const diffMin = Math.abs(occurredAt.getTime() - log.occurredAt.getTime()) / 60000;
+      return diffMin <= 10 && Math.abs((log.amountMl ?? 0) - candidateAmount) <= 20;
+    });
+
+    if (hasVerySimilarRecent && candidateAmount >= 120) {
+      const recent = recentLogs[0];
+      return {
+        suspicious: true,
+        question: `${new Intl.DateTimeFormat("ko-KR", {
+          hour: "numeric",
+          minute: "2-digit"
+        }).format(recent.occurredAt)}에 ${(recent.amountMl ?? 0)}ml 기록이 이미 있어요. 중복 기록이면 '취소', 실제 추가 섭취면 '추가 섭취'라고 답해주세요.`
+      };
+    }
+
+    if (totalAmount > DEFAULT_FORMULA_SINGLE_FEED_ML * 1.45) {
+      return {
+        suspicious: true,
+        question: `짧은 시간 안에 총 ${totalAmount}ml로 계산돼요. 평소 1회 섭취량보다 많아 보여요. 중복이면 '취소', 실제 추가 섭취면 '추가 섭취'라고 답해주세요.`
+      };
+    }
+  }
+
+  if (input.intakeType === "solid_food" || input.intakeType === "snack") {
+    const candidateAmount = input.amountG ?? 0;
+    const totalAmount = recentLogs.reduce((sum, log) => sum + (log.amountG ?? 0), 0) + candidateAmount;
+
+    if (totalAmount > DEFAULT_SOLID_SINGLE_FEED_G * 1.5) {
+      return {
+        suspicious: true,
+        question: `짧은 시간 안에 총 ${totalAmount}g로 계산돼요. 중복 기록일 수 있으면 '취소', 실제 추가 섭취면 '추가 섭취'라고 답해주세요.`
+      };
+    }
+  }
+
+  return {
+    suspicious: false as const
+  };
+}
+
+export async function createPendingConfirmation(input: {
+  chatId: string;
+  kind: string;
+  payload: CreateLogInput;
+  question: string;
+  createdBy: string;
+  rawText?: string;
+  rawImageUrl?: string;
+}) {
+  await prisma.pendingConfirmation.deleteMany({
+    where: {
+      chatId: input.chatId
+    }
+  });
+
+  return prisma.pendingConfirmation.create({
+    data: {
+      id: crypto.randomUUID(),
+      babyId: BABY_ID,
+      chatId: input.chatId,
+      kind: input.kind,
+      payload: JSON.parse(JSON.stringify(input.payload)) as object,
+      question: input.question,
+      createdBy: input.createdBy,
+      rawText: input.rawText,
+      rawImageUrl: input.rawImageUrl,
+      expiresAt: new Date(Date.now() + 15 * 60 * 1000)
+    }
+  });
+}
+
+export async function getPendingConfirmation(chatId: string) {
+  return prisma.pendingConfirmation.findFirst({
+    where: {
+      chatId,
+      expiresAt: {
+        gt: new Date()
+      }
+    },
+    orderBy: {
+      createdAt: "desc"
+    }
+  });
+}
+
+export async function deletePendingConfirmation(id: string) {
+  return prisma.pendingConfirmation.delete({
+    where: { id }
   });
 }
 

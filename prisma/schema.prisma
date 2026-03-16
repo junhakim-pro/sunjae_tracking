@@ -53,6 +53,7 @@ model Baby {
   sleepLogs           SleepLog[]
   noteLogs            NoteLog[]
   growthMeasurements  GrowthMeasurement[]
+  pendingConfirmations PendingConfirmation[]
 }
 
 model Caregiver {
@@ -143,4 +144,21 @@ model GrowthMeasurement {
   sourceStandard   String
   createdAt        DateTime @default(now())
   baby             Baby     @relation(fields: [babyId], references: [id], onDelete: Cascade)
+}
+
+model PendingConfirmation {
+  id            String   @id
+  babyId        String
+  chatId        String
+  kind          String
+  payload       Json
+  question      String
+  createdBy     String
+  rawText       String?
+  rawImageUrl   String?
+  expiresAt     DateTime
+  createdAt     DateTime @default(now())
+  baby          Baby     @relation(fields: [babyId], references: [id], onDelete: Cascade)
+
+  @@index([chatId, createdAt(sort: Desc)])
 }

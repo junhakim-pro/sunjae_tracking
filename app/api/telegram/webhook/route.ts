@@ -1,5 +1,13 @@
 import { NextRequest, NextResponse } from "next/server";
-import { createLog, getDashboardSnapshot, getTodayImageUsage } from "@/lib/data";
+import {
+  createLog,
+  createPendingConfirmation,
+  deletePendingConfirmation,
+  findSuspiciousIntake,
+  getDashboardSnapshot,
+  getPendingConfirmation,
+  getTodayImageUsage
+} from "@/lib/data";
 import { parseImageBatchWithAI, parseImageWithAI, parseTextWithAI } from "@/lib/ai";
 import { validateParsedLog } from "@/lib/parsing";
 import {
@@ -13,7 +21,7 @@ interface TelegramWebhookPayload {
     text?: string;
     caption?: string;
     photo?: Array<{ file_id: string }>;
-    from?: { id: number; first_name?: string };
+    from?: { id: number; first_name?: string; username?: string };
     date?: number;
     chat?: { id: number };
   };
@@ -151,6 +159,36 @@ async function saveParsedLog(params: {
   });
 }
 
+function parseConfirmationIntent(text?: string) {
+  const normalized = text?.trim().toLowerCase();
+
+  if (!normalized) {
+    return null;
+  }
+
+  if (
+    normalized.includes("추가") ||
+    normalized.includes("중복 아님") ||
+    normalized.includes("중복아님") ||
+    normalized.includes("맞아") ||
+    normalized.includes("맞아요") ||
+    normalized.includes("실제")
+  ) {
+    return "confirm";
+  }
+
+  if (
+    normalized.includes("취소") ||
+    normalized.includes("중복") ||
+    normalized.includes("실수") ||
+    normalized.includes("삭제")
+  ) {
+    return "cancel";
+  }
+
+  return null;
+}
+
 async function buildReplyText() {
   const snapshot = await getDashboardSnapshot();
   const formulaPercent = Math.round(
@@ -185,6 +223,32 @@ export async function POST(request: NextRequest) {
 
   if (!chatId) {
     return NextResponse.json({ ok: false, error: "chat id missing" }, { status: 400 });
+  }
+
+  const pending = await getPendingConfirmation(String(chatId));
+  const confirmationIntent = parseConfirmationIntent(payload.message?.text);
+
+  if (pending && confirmationIntent === "cancel") {
+    await deletePendingConfirmation(pending.id);
+    await sendTelegramMessage(chatId, "중복 기록으로 보고 저장하지 않았어요.");
+
+    return NextResponse.json({
+      ok: true,
+      cancelled: true
+    });
+  }
+
+  if (pending && confirmationIntent === "confirm") {
+    await deletePendingConfirmation(pending.id);
+    await createLog(pending.payload as unknown as Parameters<typeof createLog>[0]);
+    const replyText = await buildReplyText();
+    await sendTelegramMessage(chatId, `추가 섭취로 보고 저장했어요.\n${replyText}`);
+
+    return NextResponse.json({
+      ok: true,
+      confirmed: true,
+      replyText
+    });
   }
 
   if (isImage) {
@@ -248,6 +312,43 @@ export async function POST(request: NextRequest) {
   }
 
   const parsed = await parseTelegramPayload(payload);
+
+  if (parsed.type === "intake") {
+    const candidatePayload = {
+      type: "intake" as const,
+      occurredAt: parsed.occurredAt ?? new Date().toISOString(),
+      intakeType: parsed.intakeType ?? "formula",
+      amountMl: parsed.amountMl,
+      amountG: parsed.amountG,
+      foodName: parsed.note,
+      createdBy,
+      sourceType: isImage ? ("chat_image" as const) : ("chat_text" as const),
+      parseConfidence: parsed.confidence,
+      rawText,
+      rawImageUrl: isImage ? lastPhotoId : undefined
+    };
+    const suspicious = await findSuspiciousIntake(candidatePayload);
+
+    if (suspicious.suspicious) {
+      await createPendingConfirmation({
+        chatId: String(chatId),
+        kind: isImage ? "chat_image" : "chat_text",
+        payload: candidatePayload,
+        question: suspicious.question,
+        createdBy,
+        rawText,
+        rawImageUrl: isImage ? lastPhotoId : undefined
+      });
+      await sendTelegramMessage(chatId, suspicious.question);
+
+      return NextResponse.json({
+        ok: true,
+        suspicious: true,
+        replyText: suspicious.question
+      });
+    }
+  }
+
   await saveParsedLog({
     parsed,
     createdBy,
